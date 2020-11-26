@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/device.h>
+#include <linux/cdev.h>
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
@@ -17,6 +18,7 @@ static int kbdMajor = 0;
 static struct class *kbdClass;
 static struct device *kbdDevice;
 
+
 static int kbdDeviceCount = 0;
 
 static long kbdDeviceIoctl(struct file* file, unsigned int num, unsigned long param)
@@ -29,13 +31,16 @@ static long kbdDeviceIoctl(struct file* file, unsigned int num, unsigned long pa
 			kbdResetTime = ktime_get_real();
 			break;
 		case IOCTL_GET_CNT:
-			copy_to_user((unsigned long long*)param, &kbdKeyCount, sizeof(unsigned long long));
+			if(copy_to_user((unsigned long long*)param, &kbdKeyCount, sizeof(unsigned long long)))
+				return -EFAULT;
 			break;
 		case IOCTL_GET_TIME:
 			time = ktime_to_ns(kbdResetTime);
-			copy_to_user((signed long long*)param, &time, sizeof(signed long long));
+			if(copy_to_user((signed long long*)param, &time, sizeof(signed long long)))
+				return -EFAULT;
 			break;
 	}
+	return 0;
 }
 
 static int kbdDeviceOpen(struct inode* inode, struct file* file)
@@ -74,20 +79,34 @@ static int __init kbdInit(void)
 	if(IS_ERR(kbdClass))
 	{
 		printk(KERN_ALERT"Failed to create device class KeyboardCounter\n");
-		return ERR_PTR(kbdClass);
+		unregister_chrdev(kbdMajor, KBDCNT_NAME);
+		return PTR_ERR(kbdClass);
 	}
-	kbdDevice = device_create(kbdClass, NULL, kbdMajor, NULL, KBDCNT_DEVICE);
+	kbdDevice = device_create(kbdClass, NULL, MKDEV(kbdMajor, 0), NULL, KBDCNT_DEVICE);
 	if(IS_ERR(kbdDevice))
 	{
 		printk(KERN_ALERT"Failed to create device KeyboardCounter\n");
-		return ERR_PTR(kbdDevice);
+		class_destroy(kbdClass);
+		unregister_chrdev(kbdMajor, KBDCNT_NAME);
+		return PTR_ERR(kbdDevice);
 	}
+	int ret=0;
+	if(ret<0)
+	{
+		device_destroy(kbdClass, kbdMajor);
+		class_destroy(kbdClass);
+		unregister_chrdev(kbdMajor, KBDCNT_NAME);
+		return ret;
+	}	
 
+	printk(KERN_INFO"Loaded KeyboardCounter with major number: %d\n", kbdMajor);
 	return 0;
 }
 
 static void __exit kbdExit(void)
 {
+	device_destroy(kbdClass, kbdMajor);
+	class_destroy(kbdClass);
 	unregister_chrdev(kbdMajor, KBDCNT_NAME);
 }
 
