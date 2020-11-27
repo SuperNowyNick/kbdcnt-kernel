@@ -21,6 +21,14 @@ static struct device *kbdDevice;
 
 static int kbdDeviceCount = 0;
 
+static irqreturn_t kbdIrqHandler(int irq, void* dev_id, struct pt_regs *regs)
+{
+	unsigned char scancode = inb(0x60);
+	if(scancode<128)
+		kbdKeyCount++;
+	return (irqreturn_t)IRQ_HANDLED; 
+}
+
 static long kbdDeviceIoctl(struct file* file, unsigned int num, unsigned long param)
 {
 	signed long long time;
@@ -90,9 +98,10 @@ static int __init kbdInit(void)
 		unregister_chrdev(kbdMajor, KBDCNT_NAME);
 		return PTR_ERR(kbdDevice);
 	}
-	int ret=0;
+	int ret = request_irq(1, (irq_handler_t)kbdIrqHandler, IRQF_SHARED, KBDCNT_DEVICE, (void*)(kbdIrqHandler)); 
 	if(ret<0)
 	{
+		printk(KERN_ALERT"Failed to register KeyboardCounter interrupt\n");
 		device_destroy(kbdClass, kbdMajor);
 		class_destroy(kbdClass);
 		unregister_chrdev(kbdMajor, KBDCNT_NAME);
@@ -105,7 +114,9 @@ static int __init kbdInit(void)
 
 static void __exit kbdExit(void)
 {
-	device_destroy(kbdClass, kbdMajor);
+	free_irq(1, (void*)(kbdIrqHandler));
+	device_destroy(kbdClass, MKDEV(kbdMajor, 0));
+	class_unregister(kbdClass);
 	class_destroy(kbdClass);
 	unregister_chrdev(kbdMajor, KBDCNT_NAME);
 }
