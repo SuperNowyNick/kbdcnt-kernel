@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
                 return 0;
         }
         int file_desc = open("/dev/kbdcnt", 0);
-        if (file_desc == 0) {
+        if (file_desc < 0) {
                 printf("Error. Cannot open device file\n");
                 return 1;
         }
