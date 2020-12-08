@@ -40,13 +40,13 @@ static long kbdDeviceIoctl(struct file *file, unsigned int num,
                 kbdResetTime = ktime_get_real();
                 break;
         case IOCTL_GET_CNT:
-                if (copy_to_user((unsigned long long)*param, &kbdKeyCount,
+                if (copy_to_user((unsigned long long*)param, &kbdKeyCount,
                                         sizeof(unsigned long long)))
                 return -EFAULT;
                 break;
         case IOCTL_GET_TIME:
                 time = ktime_to_ns(kbdResetTime);
-                if (copy_to_user((signed long long)*param, &time,
+                if (copy_to_user((signed long long*)param, &time,
                                         sizeof(signed long long)))
                 return -EFAULT;
                 break;
