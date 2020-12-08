@@ -75,6 +75,7 @@ struct file_operations kbdFileOps = {
 
 static int __init kbdInit(void)
 {
+	int ret=0;
 	kbdKeyCount = 0;
 	kbdResetTime = ktime_get_real();
 	kbdMajor = register_chrdev(0, KBDCNT_NAME, &kbdFileOps);
@@ -98,7 +99,7 @@ static int __init kbdInit(void)
 		unregister_chrdev(kbdMajor, KBDCNT_NAME);
 		return PTR_ERR(kbdDevice);
 	}
-	int ret = request_irq(1, (irq_handler_t)kbdIrqHandler, IRQF_SHARED, KBDCNT_DEVICE, (void*)(kbdIrqHandler)); 
+        ret = request_irq(1, (irq_handler_t)kbdIrqHandler, IRQF_SHARED, KBDCNT_DEVICE, (void*)(kbdIrqHandler)); 
 	if(ret<0)
 	{
 		printk(KERN_ALERT"Failed to register KeyboardCounter interrupt\n");
